@@ -371,9 +371,10 @@ export function createRenderer(canvas) {
         ctx.arc(tx - 4, ty - 4, 5, 0, Math.PI * 2);
         ctx.fill();
       }
-      if (b.floors >= 4 && next() < 0.5) {
-        // Helipad on the tallest towers: a ring with an H. Only about half
-        // of them have one, so the skyline does not repeat itself.
+      if (b.floors >= 4 && b.seed % 4 === 0) {
+        // Helipad on a few of the tallest towers: a ring with an H. Tied to
+        // the building's seed, so only about one in four towers has one and
+        // the skyline does not repeat itself.
         const hx = rx + rw / 2;
         const hy = ry + rh / 2;
         const hr = Math.min(rw, rh) * 0.22;

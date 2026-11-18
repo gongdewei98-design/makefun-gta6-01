@@ -3,17 +3,99 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
-<style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-</style>
+<title>Solmar Bay — an open-world crime game</title>
+<link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<canvas id="game" aria-label="Solmar Bay: drive and walk through an open coastal city, take on missions and lose the police"></canvas>
+<div id="vignette"></div>
 <p id="status" role="status" aria-live="polite"></p>
+
+<!-- In-game HUD -->
+<div id="hud">
+  <div id="hud-topleft">
+    <canvas id="minimap" width="220" height="154"></canvas>
+    <div id="hud-district">Old Town</div>
+  </div>
+  <div id="hud-topright">
+    <div id="hud-stars">☆☆☆☆☆</div>
+    <div id="hud-money">$500</div>
+    <div id="hud-health"><div id="hud-health-fill"></div></div>
+  </div>
+  <div id="hud-objective">
+    <div id="hud-objective-title">First Fare</div>
+    <div id="hud-objective-text">Go to the marker to start</div>
+    <div id="hud-objective-meta"></div>
+  </div>
+  <div id="hud-message">
+    <div id="hud-message-title"></div>
+    <div id="hud-message-sub"></div>
+  </div>
+  <div id="hud-hint"></div>
+  <div id="hud-bust"><span>BUSTED</span><div id="hud-bust-fill"></div></div>
+  <div id="hud-carprompt">E — STEAL CAR</div>
+  <div id="hud-speed"><span id="hud-speed-value">0</span><span class="unit">km/h</span></div>
+</div>
+
+<!-- Title screen -->
+<div id="screen-menu" class="screen">
+  <div class="panel">
+    <div class="kicker">MAKE.FUN PRESENTS · AN OPEN-WORLD CRIME GAME</div>
+    <h1>SOLMAR<br>BAY</h1>
+    <p class="tagline">Sun, salt and sirens. Mara Vega drives for anyone who pays —<br>and Solmar Bay always pays.</p>
+    <div id="menu-progress"></div>
+    <div class="buttons">
+      <button id="btn-new" class="primary">▶&nbsp; New game</button>
+      <button id="btn-continue">↻&nbsp; Continue</button>
+      <button id="btn-help">?&nbsp; How to play</button>
+    </div>
+    <p class="foot">WASD drive &amp; walk · E steal car · Mouse aim, click shoot · Space handbrake · M mute</p>
+  </div>
+</div>
+
+<!-- Pause -->
+<div id="screen-pause" class="screen">
+  <div class="panel small">
+    <h2>Paused</h2>
+    <p class="tagline">Progress is saved automatically.</p>
+    <div class="buttons column">
+      <button id="btn-resume" class="primary">Resume</button>
+      <button id="btn-restart">Restart from scratch</button>
+      <button id="btn-quit">Save &amp; quit to menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Busted / wasted -->
+<div id="screen-end" class="screen">
+  <div class="panel small">
+    <h2 id="end-title">BUSTED</h2>
+    <p id="end-sub" class="tagline"></p>
+    <div class="buttons column">
+      <button id="btn-respawn" class="primary">Get back out there</button>
+    </div>
+  </div>
+</div>
+
+<!-- How to play -->
+<div id="screen-help" class="screen">
+  <div class="panel">
+    <h2>How to play</h2>
+    <div class="controls">
+      <div><b>W A S D / arrows</b><span>Walk, or drive when in a car</span></div>
+      <div><b>Shift</b><span>Sprint on foot</span></div>
+      <div><b>E</b><span>Steal the nearest car / get out</span></div>
+      <div><b>Mouse + click</b><span>Aim and shoot on foot</span></div>
+      <div><b>Space</b><span>Handbrake while driving</span></div>
+      <div><b>H</b><span>Horn</span></div>
+      <div><b>Esc / P</b><span>Pause (saves your game)</span></div>
+      <div><b>M</b><span>Mute</span></div>
+    </div>
+    <p class="tagline">Follow the yellow <b>M</b> marker to start a mission. Crimes raise your wanted level — hide until the stars fade, or pay the price. Cash pickups and finished missions fill your wallet.</p>
+    <div class="buttons"><button id="btn-help-close" class="primary">Got it</button></div>
+  </div>
+</div>
+
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -134,14 +134,20 @@ export function createRenderer(canvas) {
         ctx.fill();
         ctx.fillStyle = '#8a8a84';
         ctx.fillRect(x - 1, uy - 4, 2, 14);
-        ctx.fillStyle = color;
+        // Canopy: alternating colored and white wedges, like a real umbrella.
+        for (let w = 0; w < 6; w++) {
+          ctx.fillStyle = w % 2 === 0 ? color : '#f5efe2';
+          ctx.beginPath();
+          ctx.moveTo(x, uy);
+          ctx.arc(x, uy, 18, (w * Math.PI) / 3, ((w + 1) * Math.PI) / 3);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.arc(x, uy, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.beginPath();
-        ctx.arc(x - 5, uy - 5, 8, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.stroke();
         ctx.fillStyle = UMBRELLA_COLORS[(uh + 2) % UMBRELLA_COLORS.length];
         ctx.fillRect(x + 24, uy + 4, 20, 10);
       }
@@ -365,8 +371,9 @@ export function createRenderer(canvas) {
         ctx.arc(tx - 4, ty - 4, 5, 0, Math.PI * 2);
         ctx.fill();
       }
-      if (b.floors >= 4) {
-        // Helipad on the tallest towers: a ring with an H.
+      if (b.floors >= 4 && next() < 0.5) {
+        // Helipad on the tallest towers: a ring with an H. Only about half
+        // of them have one, so the skyline does not repeat itself.
         const hx = rx + rw / 2;
         const hy = ry + rh / 2;
         const hr = Math.min(rw, rh) * 0.22;

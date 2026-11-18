@@ -47,14 +47,14 @@ export const CAR = {
 };
 
 export const TRAFFIC = {
-  count: 22,
+  count: 26,
   cruiseSpeed: 230,
   spawnRadius: 1300,
   despawnRadius: 1700,
 };
 
 export const PEDS = {
-  count: 36,
+  count: 48,
   walkSpeed: 70,
   fleeSpeed: 210,
   spawnRadius: 1100,
@@ -126,7 +126,7 @@ export const PALETTE = {
   sidewalk: '#b8b2a4',
   dash: '#e8e0c8',
   building: ['#f2a65a', '#7fb5b5', '#e8837a', '#f4e3c1', '#9db8d2', '#d9a5c0', '#a8c686', '#f0c75e'],
-  roof: ['#b5543f', '#5d7d8c', '#8c5a6b', '#7a6a4f', '#4f6d8c'],
+  roof: ['#b5543f', '#5d7d8c', '#8c5a6b', '#7a6a4f', '#4f6d8c', '#6b8e6b', '#a08050', '#7d6a8c'],
   palmTrunk: '#7a5a38',
   palmLeaf: '#3f8f4f',
   treeLeaf: '#5d9c4f',

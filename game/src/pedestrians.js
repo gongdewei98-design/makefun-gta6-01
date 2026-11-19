@@ -48,6 +48,9 @@ export function createPed(world, x, y) {
     pants: PANTS[Math.floor(Math.random() * PANTS.length)],
     skin: ['#f2c9a0', '#c98d5e', '#8d5a3b', '#f7d7b0'][Math.floor(Math.random() * 4)],
     walkPhase: Math.random() * Math.PI * 2,
+    // About a third of the crowd wears a cap instead of bare hair.
+    cap: Math.random() < 0.35,
+    capColor: ['#d94f3d', '#3d7dd9', '#f2c230', '#2e8b57', '#f5f5f5'][Math.floor(Math.random() * 5)],
   };
 }
 
@@ -185,39 +188,72 @@ export function updatePeds(world, dt) {
 export function drawPed(ctx, ped) {
   ctx.save();
   ctx.translate(ped.x, ped.y);
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillStyle = 'rgba(0,0,0,0.24)';
   ctx.beginPath();
-  ctx.ellipse(2, 4, 10, 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(3, 6, 15, 9, 0, 0, Math.PI * 2);
   ctx.fill();
   if (ped.state === 'down') {
     // Lying on the ground, stars circling.
     ctx.rotate(ped.angle);
     ctx.fillStyle = ped.shirt;
-    ctx.fillRect(-13, -6, 26, 12);
+    ctx.fillRect(-19, -9, 38, 18);
     ctx.fillStyle = ped.skin;
     ctx.beginPath();
-    ctx.arc(15, 0, 6, 0, Math.PI * 2);
+    ctx.arc(22, 0, 9, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     return;
   }
   ctx.rotate(ped.angle + Math.PI / 2);
-  const swing = Math.sin(ped.walkPhase) * (ped.speed > 10 ? 3 : 0);
-  // Legs, body, head: a simple top-down figure.
+  const walking = ped.speed > 10;
+  const swing = Math.sin(ped.walkPhase) * (walking ? 4.5 : 0);
+  // Legs stride in opposite phase; arms swing against the legs.
   ctx.fillStyle = ped.pants;
-  ctx.fillRect(-6, -2 + swing * 0.4, 5, 12);
-  ctx.fillRect(1, -2 - swing * 0.4, 5, 12);
+  ctx.fillRect(-9, -3 + swing * 0.5, 7, 18);
+  ctx.fillRect(2, -3 - swing * 0.5, 7, 18);
+  // Arms: short sleeves swinging beside the body.
+  ctx.fillStyle = ped.shirt;
+  ctx.save();
+  ctx.translate(-13, -2);
+  ctx.rotate(swing * 0.06);
+  ctx.fillRect(-3, -2, 6, 14);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(13, -2);
+  ctx.rotate(-swing * 0.06);
+  ctx.fillRect(-3, -2, 6, 14);
+  ctx.restore();
+  // Hands.
+  ctx.fillStyle = ped.skin;
+  ctx.beginPath();
+  ctx.arc(-13 - swing * 0.8, 12, 3.5, 0, Math.PI * 2);
+  ctx.arc(13 + swing * 0.8, 12, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Body and head: a larger top-down figure, easy to spot from the air.
   ctx.fillStyle = ped.shirt;
   ctx.beginPath();
-  ctx.ellipse(0, -2, 8, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -3, 12, 13, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = ped.skin;
   ctx.beginPath();
-  ctx.arc(0, -12, 6.5, 0, Math.PI * 2);
+  ctx.arc(0, -18, 9.5, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#2b2b2e';
-  ctx.beginPath();
-  ctx.arc(0, -13.5, 6, Math.PI, Math.PI * 2);
-  ctx.fill();
+  if (ped.cap) {
+    // Cap: a coloured dome with a brim pointing forward.
+    ctx.fillStyle = ped.capColor;
+    ctx.beginPath();
+    ctx.arc(0, -19.5, 9, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(-9, -24.5, 18, 3.5);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.arc(-3, -22, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#2b2b2e';
+    ctx.beginPath();
+    ctx.arc(0, -20, 9, Math.PI, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }

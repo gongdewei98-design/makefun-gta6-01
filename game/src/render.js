@@ -14,6 +14,16 @@ import { drawBullets, drawEnemy } from './combat.js';
 import { drawPlayer } from './player.js';
 import { currentObjective } from './missions.js';
 
+// Deterministic [0, 1) from a seed and an item index, so roof furniture,
+// ponds and umbrellas sit in the same place every visit.
+function hash01(seed, n) {
+  let x = (seed * 2654435761 + n * 40503) >>> 0;
+  x = (x ^ (x >>> 13)) >>> 0;
+  x = (x * 1274126177) >>> 0;
+  x = (x ^ (x >>> 16)) >>> 0;
+  return x / 4294967296;
+}
+
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
   let viewW = 0;
@@ -63,13 +73,47 @@ export function createRenderer(canvas) {
     // Base ground.
     ctx.fillStyle = PALETTE.ground;
     ctx.fillRect(view.x0, view.y0, view.x1 - view.x0, view.y1 - view.y0);
-    // Parks.
+    // Parks: lawn, a cross of dirt paths, a pond in the bigger ones,
+    // and flower beds in the corners.
     for (const p of world.city.parks) {
       if (p.x > view.x1 || p.x + p.w < view.x0 || p.y > view.y1 || p.y + p.h < view.y0) continue;
       ctx.fillStyle = PALETTE.grass;
       ctx.fillRect(p.x, p.y, p.w, p.h);
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fillRect(p.x + 8, p.y + 8, p.w - 16, p.h - 16);
+      ctx.fillStyle = '#cbb98d';
+      ctx.fillRect(p.x + p.w / 2 - 7, p.y, 14, p.h);
+      ctx.fillRect(p.x, p.y + p.h / 2 - 7, p.w, 14);
+      const pondRoll = hash01(Math.round(p.x) * 7 + Math.round(p.y), 1);
+      if (p.w > 150 && p.h > 120 && pondRoll < 0.7) {
+        const px = p.x + p.w * (0.25 + pondRoll * 0.3);
+        const py = p.y + p.h * (0.3 + hash01(Math.round(p.x), 2) * 0.4);
+        ctx.fillStyle = '#d9c184';
+        ctx.beginPath();
+        ctx.ellipse(px, py, 34, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#4fa8c8';
+        ctx.beginPath();
+        ctx.ellipse(px, py, 28, 17, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath();
+        ctx.ellipse(px - 8, py - 5, 10, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const flowerColors = ['#e8837a', '#f2c230', '#d9a5c0', '#f5f5f5'];
+      for (const [fx, fy] of [[p.x + 16, p.y + 16], [p.x + p.w - 46, p.y + p.h - 46]]) {
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillRect(fx - 4, fy - 4, 38, 38);
+        for (let i = 0; i < 8; i++) {
+          ctx.fillStyle = flowerColors[Math.floor(hash01(Math.round(p.x + p.y), 10 + i) * flowerColors.length)];
+          ctx.beginPath();
+          ctx.arc(
+            fx + hash01(Math.round(p.x), 20 + i) * 30,
+            fy + hash01(Math.round(p.y), 30 + i) * 30,
+            3, 0, Math.PI * 2,
+          );
+          ctx.fill();
+        }
+      }
     }
     // Parking lots.
     for (const p of world.city.parkingLots) {
@@ -92,6 +136,44 @@ export function createRenderer(canvas) {
       // Wet sand near the waterline.
       ctx.fillStyle = '#d9c184';
       ctx.fillRect(view.x0, WORLD.waterTop - 14, view.x1 - view.x0, 14);
+      // Beach umbrellas and towels, spaced along the sand.
+      const umbrellaColors = [
+        ['#d94f3d', '#f5f5f5'], ['#3d7dd9', '#f5f5f5'],
+        ['#f2c230', '#d94f3d'], ['#2e8b57', '#f5f5f5'],
+      ];
+      for (let i = 0; i < 20; i++) {
+        const ux = 90 + i * 175 + hash01(i, 1) * 60;
+        if (ux < view.x0 - 40 || ux > view.x1 + 40) continue;
+        if (hash01(i, 2) < 0.25) continue; // some spots stay empty
+        const uy = WORLD.beachTop + 36 + hash01(i, 3) * 110;
+        const [c1, c2] = umbrellaColors[Math.floor(hash01(i, 4) * umbrellaColors.length)];
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.beginPath();
+        ctx.ellipse(ux + 8, uy + 10, 22, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Segmented canopy: six alternating wedges.
+        for (let s = 0; s < 6; s++) {
+          ctx.fillStyle = s % 2 === 0 ? c1 : c2;
+          ctx.beginPath();
+          ctx.moveTo(ux, uy);
+          ctx.arc(ux, uy, 20, (s / 6) * Math.PI * 2, ((s + 1) / 6) * Math.PI * 2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath();
+        ctx.arc(ux, uy, 3, 0, Math.PI * 2);
+        ctx.fill();
+        // A towel beside it.
+        ctx.save();
+        ctx.translate(ux + 26, uy + 14);
+        ctx.rotate(hash01(i, 5) * 0.6 - 0.3);
+        ctx.fillStyle = c1;
+        ctx.fillRect(-14, -7, 28, 14);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.fillRect(-14, -7, 28, 4);
+        ctx.restore();
+      }
     }
     if (view.y1 > WORLD.waterTop) {
       const grad = ctx.createLinearGradient(0, WORLD.waterTop, 0, WORLD.height);
@@ -172,34 +254,169 @@ export function createRenderer(canvas) {
         if (!inCrossing && x > view.x0 && x < view.x1) ctx.fillRect(x, hy - 2, 22, 4);
       }
     }
+    // Zebra crosswalks at every intersection: white stripes across each road
+    // just outside the crossing box, on all four arms.
+    ctx.fillStyle = 'rgba(240,236,220,0.9)';
+    for (const vx of ROADS.vertical) {
+      for (const hy of ROADS.horizontal) {
+        // Bands across the vertical road, north and south of the crossing.
+        for (const sy of [hy - half - 22, hy + half + 6]) {
+          if (sy < view.y0 - 20 || sy > view.y1) continue;
+          for (let x = vx - half + 8; x < vx + half - 12; x += 18) {
+            ctx.fillRect(x, sy, 10, 16);
+          }
+        }
+        // Bands across the horizontal road, west and east of the crossing.
+        for (const sx of [vx - half - 22, vx + half + 6]) {
+          if (sx < view.x0 - 20 || sx > view.x1) continue;
+          for (let y = hy - half + 8; y < hy + half - 12; y += 18) {
+            ctx.fillRect(sx, y, 16, 10);
+          }
+        }
+      }
+    }
   }
 
   function drawBuildings(world, view) {
     for (const b of world.city.buildings) {
       if (b.x + b.w < view.x0 || b.x > view.x1 || b.y + b.h < view.y0 || b.y > view.y1) continue;
-      const lift = 6 + b.floors * 3;
-      // Drop shadow to the south-east, sized by height.
-      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      const lift = 6 + b.floors * 3; // shadow offset, grows with height
+      const off = 5 + b.floors * 2; // roof shift to the north-west
+      // Strong drop shadow to the south-east.
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.fillRect(b.x + lift, b.y + lift + 4, b.w, b.h);
       // Wall face.
       ctx.fillStyle = b.color;
       ctx.fillRect(b.x, b.y, b.w, b.h);
-      // South and east faces, darker, for a hint of height.
-      ctx.fillStyle = 'rgba(0,0,0,0.14)';
-      ctx.fillRect(b.x, b.y + b.h - lift, b.w, lift);
-      ctx.fillRect(b.x + b.w - lift, b.y, lift, b.h);
-      // Roof.
+      // South and east wall bands, darker, with lit window strips.
+      const band = 7 + off;
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.fillRect(b.x, b.y + b.h - band, b.w, band);
+      ctx.fillRect(b.x + b.w - band, b.y, band, b.h);
+      ctx.fillStyle = 'rgba(255,230,150,0.85)';
+      const winH = Math.max(3, Math.floor(band / 2) - 1);
+      for (let x = b.x + 10; x < b.x + b.w - 16; x += 22) {
+        ctx.fillRect(x, b.y + b.h - band + 2, 12, winH);
+      }
+      const winW = Math.max(3, Math.floor(band / 2) - 1);
+      for (let y = b.y + 10; y < b.y + b.h - 16; y += 22) {
+        ctx.fillRect(b.x + b.w - band + 2, y, winW, 12);
+      }
+      // Roof, shifted north-west so the south and east walls read as height.
+      const rx = b.x + 7 - off;
+      const ry = b.y + 7 - off;
+      const rw = b.w - 14;
+      const rh = b.h - 14;
       ctx.fillStyle = b.roof;
-      ctx.fillRect(b.x + 7, b.y + 7, b.w - 14, b.h - 14);
+      ctx.fillRect(rx, ry, rw, rh);
+      // Sunlit top edge.
       ctx.fillStyle = 'rgba(255,255,255,0.16)';
-      ctx.fillRect(b.x + 7, b.y + 7, b.w - 14, 8);
-      // Roof clutter: vents and a water tank, placed by the building's seed.
-      const s = b.seed;
-      const vx = b.x + 14 + (s % 53);
-      const vy = b.y + 14 + ((s >> 3) % 41);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.fillRect(vx, vy, 14, 10);
-      ctx.fillRect(b.x + b.w - 30, b.y + b.h - 26, 12, 12);
+      ctx.fillRect(rx, ry, rw, 8);
+      // Roof panel seams.
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1;
+      for (let x = rx + 30; x < rx + rw - 8; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(x, ry + 2);
+        ctx.lineTo(x, ry + rh - 2);
+        ctx.stroke();
+      }
+      for (let y = ry + 30; y < ry + rh - 8; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(rx + 2, y);
+        ctx.lineTo(rx + rw - 2, y);
+        ctx.stroke();
+      }
+      // Roof furniture, seeded by the building so it never moves.
+      if (rw > 70 && rh > 70) {
+        const fx = (f) => rx + 10 + f * (rw - 20);
+        const fy = (f) => ry + 10 + f * (rh - 20);
+        // AC units with fan circles.
+        const acCount = 1 + Math.floor(hash01(b.seed, 1) * 2);
+        for (let i = 0; i < acCount; i++) {
+          const ax = fx(hash01(b.seed, 10 + i));
+          const ay = fy(hash01(b.seed, 20 + i));
+          ctx.fillStyle = '#9aa0a3';
+          ctx.fillRect(ax, ay, 18, 13);
+          ctx.fillStyle = '#5a5e60';
+          ctx.beginPath();
+          ctx.arc(ax + 9, ay + 6.5, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#c8ccce';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(ax + 5.5, ay + 6.5);
+          ctx.lineTo(ax + 12.5, ay + 6.5);
+          ctx.moveTo(ax + 9, ay + 3);
+          ctx.lineTo(ax + 9, ay + 10);
+          ctx.stroke();
+        }
+        // Vents.
+        const ventCount = 1 + Math.floor(hash01(b.seed, 2) * 2);
+        for (let i = 0; i < ventCount; i++) {
+          const vx = fx(hash01(b.seed, 30 + i));
+          const vy = fy(hash01(b.seed, 40 + i));
+          ctx.fillStyle = 'rgba(0,0,0,0.35)';
+          ctx.fillRect(vx, vy, 9, 9);
+          ctx.fillStyle = 'rgba(255,255,255,0.3)';
+          ctx.fillRect(vx, vy, 9, 2);
+        }
+        // Skylight.
+        const sx = fx(hash01(b.seed, 3));
+        const sy = fy(hash01(b.seed, 4));
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillRect(sx, sy, 20, 14);
+        ctx.fillStyle = '#8ec8dd';
+        ctx.fillRect(sx + 2, sy + 2, 16, 10);
+        // Water tank near a corner.
+        if (hash01(b.seed, 5) < 0.6) {
+          const tx = rx + rw - 18 - hash01(b.seed, 6) * 20;
+          const ty = ry + rh - 18 - hash01(b.seed, 7) * 20;
+          ctx.fillStyle = '#7a8288';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#a8b0b5';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#5a6065';
+          ctx.beginPath();
+          ctx.arc(tx, ty, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // Helipad on about one in four towers; otherwise a rooftop garden.
+        const tower = b.floors >= 3 && Math.min(rw, rh) > 110;
+        if (tower && hash01(b.seed, 8) < 0.25) {
+          const hx = rx + rw / 2;
+          const hy = ry + rh / 2;
+          const hr = Math.min(rw, rh) / 2 - 12;
+          ctx.fillStyle = 'rgba(30,30,36,0.85)';
+          ctx.beginPath();
+          ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#f5f5f5';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(hx, hy, hr - 3, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = '#f5f5f5';
+          ctx.font = `bold ${Math.round(hr)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('H', hx, hy + 1);
+        } else if (hash01(b.seed, 9) < 0.5) {
+          const gx = fx(hash01(b.seed, 11));
+          const gy = fy(hash01(b.seed, 12));
+          ctx.fillStyle = '#5d9c4f';
+          ctx.fillRect(gx, gy, 30, 20);
+          ctx.fillStyle = '#3f8f4f';
+          ctx.beginPath();
+          ctx.arc(gx + 8, gy + 8, 5, 0, Math.PI * 2);
+          ctx.arc(gx + 21, gy + 12, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
   }
 

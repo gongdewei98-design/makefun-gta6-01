@@ -47,7 +47,6 @@ export function createPed(world, x, y) {
     shirt: SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
     pants: PANTS[Math.floor(Math.random() * PANTS.length)],
     skin: ['#f2c9a0', '#c98d5e', '#8d5a3b', '#f7d7b0'][Math.floor(Math.random() * 4)],
-    hat: Math.random() < 0.35 ? ['#d94f3d', '#3d7dd9', '#f2c230', '#2e8b57'][Math.floor(Math.random() * 4)] : null,
     walkPhase: Math.random() * Math.PI * 2,
   };
 }
@@ -186,66 +185,39 @@ export function updatePeds(world, dt) {
 export function drawPed(ctx, ped) {
   ctx.save();
   ctx.translate(ped.x, ped.y);
-  // A solid shadow grounds the figure so it reads at a glance.
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.beginPath();
-  ctx.ellipse(3, 6, 15, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(2, 4, 10, 6, 0, 0, Math.PI * 2);
   ctx.fill();
   if (ped.state === 'down') {
     // Lying on the ground, stars circling.
     ctx.rotate(ped.angle);
     ctx.fillStyle = ped.shirt;
-    ctx.fillRect(-19, -9, 38, 18);
+    ctx.fillRect(-13, -6, 26, 12);
     ctx.fillStyle = ped.skin;
     ctx.beginPath();
-    ctx.arc(22, 0, 9, 0, Math.PI * 2);
+    ctx.arc(15, 0, 6, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#ffd23c';
-    for (let i = 0; i < 3; i++) {
-      const a = ped.walkPhase * 2 + (i * Math.PI * 2) / 3;
-      ctx.beginPath();
-      ctx.arc(22 + Math.cos(a) * 13, Math.sin(a) * 13, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
     ctx.restore();
     return;
   }
   ctx.rotate(ped.angle + Math.PI / 2);
-  const swing = Math.sin(ped.walkPhase) * (ped.speed > 10 ? 5 : 0);
-  // Legs, swinging as the figure walks; arms swinging opposite.
+  const swing = Math.sin(ped.walkPhase) * (ped.speed > 10 ? 3 : 0);
+  // Legs, body, head: a simple top-down figure.
   ctx.fillStyle = ped.pants;
-  ctx.fillRect(-9, -3 + swing * 0.4, 7, 18);
-  ctx.fillRect(2, -3 - swing * 0.4, 7, 18);
-  ctx.fillStyle = ped.skin;
-  ctx.beginPath();
-  ctx.arc(-12, -2 - swing * 0.5, 4, 0, Math.PI * 2);
-  ctx.arc(12, -2 + swing * 0.5, 4, 0, Math.PI * 2);
-  ctx.fill();
-  // Body: a bright shirt, big enough to spot from the road.
+  ctx.fillRect(-6, -2 + swing * 0.4, 5, 12);
+  ctx.fillRect(1, -2 - swing * 0.4, 5, 12);
   ctx.fillStyle = ped.shirt;
   ctx.beginPath();
-  ctx.ellipse(0, -3, 12, 13, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -2, 8, 9, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
-  ctx.beginPath();
-  ctx.ellipse(-3, -7, 6, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // Head, hair, and a cap on some.
   ctx.fillStyle = ped.skin;
   ctx.beginPath();
-  ctx.arc(0, -18, 9.5, 0, Math.PI * 2);
+  ctx.arc(0, -12, 6.5, 0, Math.PI * 2);
   ctx.fill();
-  if (ped.hat) {
-    ctx.fillStyle = ped.hat;
-    ctx.beginPath();
-    ctx.arc(0, -19, 9.5, Math.PI, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(-9.5, -20, 19, 4);
-  } else {
-    ctx.fillStyle = '#2b2b2e';
-    ctx.beginPath();
-    ctx.arc(0, -20, 9, Math.PI, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.fillStyle = '#2b2b2e';
+  ctx.beginPath();
+  ctx.arc(0, -13.5, 6, Math.PI, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }

@@ -63,40 +63,13 @@ export function createRenderer(canvas) {
     // Base ground.
     ctx.fillStyle = PALETTE.ground;
     ctx.fillRect(view.x0, view.y0, view.x1 - view.x0, view.y1 - view.y0);
-    // Parks: lawn, a path across, and a pond or flower beds on some.
+    // Parks.
     for (const p of world.city.parks) {
       if (p.x > view.x1 || p.x + p.w < view.x0 || p.y > view.y1 || p.y + p.h < view.y0) continue;
       ctx.fillStyle = PALETTE.grass;
       ctx.fillRect(p.x, p.y, p.w, p.h);
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.fillRect(p.x + 8, p.y + 8, p.w - 16, p.h - 16);
-      // A pale path across the park, both ways.
-      ctx.fillStyle = 'rgba(220,210,180,0.85)';
-      ctx.fillRect(p.x, p.y + p.h / 2 - 6, p.w, 12);
-      ctx.fillRect(p.x + p.w / 2 - 6, p.y, 12, p.h);
-      // A pond on the bigger parks, flower beds on the smaller ones.
-      // Seeded by the park's position, so it never moves.
-      const h = (((p.x * 31 + p.y * 17) % 100) + 100) % 100;
-      if (p.w > 200 && p.h > 150 && h < 45) {
-        ctx.fillStyle = '#2fa8b8';
-        ctx.beginPath();
-        ctx.ellipse(p.x + p.w * 0.3, p.y + p.h * 0.3, 36, 24, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.beginPath();
-        ctx.ellipse(p.x + p.w * 0.3 - 9, p.y + p.h * 0.3 - 6, 15, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        const flowerColors = ['#e8837a', '#f2c230', '#d9a5c0', '#f5efe2'];
-        for (let i = 0; i < 10; i++) {
-          const fx = p.x + 16 + ((h * 37 + i * 53) % Math.max(20, p.w - 32));
-          const fy = p.y + 16 + ((h * 23 + i * 41) % Math.max(20, p.h - 32));
-          ctx.fillStyle = flowerColors[(h + i) % flowerColors.length];
-          ctx.beginPath();
-          ctx.arc(fx, fy, 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
     }
     // Parking lots.
     for (const p of world.city.parkingLots) {
@@ -119,38 +92,6 @@ export function createRenderer(canvas) {
       // Wet sand near the waterline.
       ctx.fillStyle = '#d9c184';
       ctx.fillRect(view.x0, WORLD.waterTop - 14, view.x1 - view.x0, 14);
-      // Beach umbrellas and towels: deterministic by position, so they never
-      // move between visits. Some stretches stay empty.
-      const UMBRELLA_COLORS = ['#e8837a', '#f2c230', '#7fb5b5', '#d9a5c0', '#f4e3c1'];
-      for (let x = 100; x < WORLD.width - 60; x += 120) {
-        if (x < view.x0 - 60 || x > view.x1 + 60) continue;
-        const uh = ((x * 2654435761) >>> 0) % 100;
-        if (uh < 30) continue;
-        const uy = WORLD.beachTop + 36 + (uh % 5) * 12;
-        const color = UMBRELLA_COLORS[uh % UMBRELLA_COLORS.length];
-        ctx.fillStyle = 'rgba(0,0,0,0.18)';
-        ctx.beginPath();
-        ctx.ellipse(x + 8, uy + 8, 20, 8, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#8a8a84';
-        ctx.fillRect(x - 1, uy - 4, 2, 14);
-        // Canopy: alternating colored and white wedges, like a real umbrella.
-        for (let w = 0; w < 6; w++) {
-          ctx.fillStyle = w % 2 === 0 ? color : '#f5efe2';
-          ctx.beginPath();
-          ctx.moveTo(x, uy);
-          ctx.arc(x, uy, 18, (w * Math.PI) / 3, ((w + 1) * Math.PI) / 3);
-          ctx.closePath();
-          ctx.fill();
-        }
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(x, uy, 18, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = UMBRELLA_COLORS[(uh + 2) % UMBRELLA_COLORS.length];
-        ctx.fillRect(x + 24, uy + 4, 20, 10);
-      }
     }
     if (view.y1 > WORLD.waterTop) {
       const grad = ctx.createLinearGradient(0, WORLD.waterTop, 0, WORLD.height);
@@ -231,39 +172,6 @@ export function createRenderer(canvas) {
         if (!inCrossing && x > view.x0 && x < view.x1) ctx.fillRect(x, hy - 2, 22, 4);
       }
     }
-    // Solid edge lines along both sides of every road.
-    ctx.fillStyle = 'rgba(232,224,200,0.5)';
-    for (const vx of ROADS.vertical) {
-      if (vx + half < view.x0 || vx - half > view.x1) continue;
-      ctx.fillRect(vx - half + 5, 0, 3, WORLD.beachTop);
-      ctx.fillRect(vx + half - 8, 0, 3, WORLD.beachTop);
-    }
-    for (const hy of ROADS.horizontal) {
-      if (hy + half < view.y0 || hy - half > view.y1) continue;
-      ctx.fillRect(0, hy - half + 5, WORLD.width, 3);
-      ctx.fillRect(0, hy + half - 8, WORLD.width, 3);
-    }
-    // Crosswalks at every intersection: zebra stripes on each road's asphalt,
-    // just outside the crossing, so every corner reads as a city street.
-    ctx.fillStyle = 'rgba(232,224,200,0.75)';
-    for (const vx of ROADS.vertical) {
-      for (const hy of ROADS.horizontal) {
-        // Stripes across the vertical road, above and below the crossing.
-        for (const cy of [hy - half - 10, hy + half + 10]) {
-          if (cy < view.y0 - 12 || cy > view.y1 + 12) continue;
-          for (let x = vx - half + 8; x < vx + half - 8; x += 14) {
-            ctx.fillRect(x, cy - 8, 7, 16);
-          }
-        }
-        // Stripes across the horizontal road, left and right of the crossing.
-        for (const cx of [vx - half - 10, vx + half + 10]) {
-          if (cx < view.x0 - 12 || cx > view.x1 + 12) continue;
-          for (let y = hy - half + 8; y < hy + half - 8; y += 14) {
-            ctx.fillRect(cx - 8, y, 16, 7);
-          }
-        }
-      }
-    }
   }
 
   function drawBuildings(world, view) {
@@ -271,138 +179,27 @@ export function createRenderer(canvas) {
       if (b.x + b.w < view.x0 || b.x > view.x1 || b.y + b.h < view.y0 || b.y > view.y1) continue;
       const lift = 6 + b.floors * 3;
       // Drop shadow to the south-east, sized by height.
-      ctx.fillStyle = 'rgba(0,0,0,0.26)';
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
       ctx.fillRect(b.x + lift, b.y + lift + 4, b.w, b.h);
       // Wall face.
       ctx.fillStyle = b.color;
       ctx.fillRect(b.x, b.y, b.w, b.h);
-      // South and east faces, darker, for a hint of height. The roof sits
-      // toward the north-west, so the wall bands read as the building's sides.
+      // South and east faces, darker, for a hint of height.
       ctx.fillStyle = 'rgba(0,0,0,0.14)';
-      ctx.fillRect(b.x, b.y + b.h - 7 - lift, b.w, 7 + lift);
-      ctx.fillRect(b.x + b.w - 7 - lift, b.y, 7 + lift, b.h);
-      // Roof: an inset slab with a darker border and panel seams.
-      const rx = b.x + 7;
-      const ry = b.y + 7;
-      const rw = b.w - 14 - lift;
-      const rh = b.h - 14 - lift;
+      ctx.fillRect(b.x, b.y + b.h - lift, b.w, lift);
+      ctx.fillRect(b.x + b.w - lift, b.y, lift, b.h);
+      // Roof.
       ctx.fillStyle = b.roof;
-      ctx.fillRect(rx, ry, rw, rh);
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(rx + 1.5, ry + 1.5, rw - 3, rh - 3);
+      ctx.fillRect(b.x + 7, b.y + 7, b.w - 14, b.h - 14);
       ctx.fillStyle = 'rgba(255,255,255,0.16)';
-      ctx.fillRect(rx, ry, rw, 8);
-      // Panel seams across the roof.
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.lineWidth = 2;
-      for (let px = rx + 46; px < rx + rw - 10; px += 46) {
-        ctx.beginPath();
-        ctx.moveTo(px, ry + 4);
-        ctx.lineTo(px, ry + rh - 4);
-        ctx.stroke();
-      }
-      for (let py = ry + 46; py < ry + rh - 10; py += 46) {
-        ctx.beginPath();
-        ctx.moveTo(rx + 4, py);
-        ctx.lineTo(rx + rw - 4, py);
-        ctx.stroke();
-      }
-      // Windows along the south and east wall bands: lit panes in a row.
-      ctx.fillStyle = 'rgba(255,240,190,0.75)';
-      const winStep = 26;
-      for (let wx = b.x + 14; wx < b.x + b.w - lift - 14; wx += winStep) {
-        ctx.fillRect(wx, b.y + b.h - lift + 1, 10, Math.max(4, lift - 4));
-      }
-      for (let wy = b.y + 14; wy < b.y + b.h - lift - 14; wy += winStep) {
-        ctx.fillRect(b.x + b.w - lift + 1, wy, Math.max(4, lift - 4), 10);
-      }
-      // Seeded roof furniture: AC units, vents, skylights, a water tank,
-      // a rooftop garden, or a helipad on the tallest towers.
-      let s = (b.seed * 2654435761) >>> 0;
-      const next = () => {
-        s = (s * 1664525 + 1013904223) >>> 0;
-        return s / 4294967296;
-      };
-      const units = 1 + Math.floor(next() * 3);
-      for (let i = 0; i < units; i++) {
-        const uw = 16 + next() * 10;
-        const uh = 12 + next() * 8;
-        const ux = rx + 10 + next() * Math.max(10, rw - uw - 20);
-        const uy = ry + 10 + next() * Math.max(10, rh - uh - 20);
-        ctx.fillStyle = '#c9c9c2';
-        ctx.fillRect(ux, uy, uw, uh);
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath();
-        ctx.arc(ux + uw / 2, uy + uh / 2, Math.min(uw, uh) * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      const vents = 1 + Math.floor(next() * 2);
-      for (let i = 0; i < vents; i++) {
-        const vx = rx + 10 + next() * Math.max(10, rw - 26);
-        const vy = ry + 10 + next() * Math.max(10, rh - 22);
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(vx, vy, 12, 9);
-        ctx.fillStyle = 'rgba(255,255,255,0.2)';
-        ctx.fillRect(vx, vy, 12, 3);
-      }
-      if (next() < 0.55) {
-        // Skylight: a blue-tinted glass panel.
-        const sw = Math.min(44, rw * 0.3);
-        const sh = Math.min(30, rh * 0.3);
-        const sx = rx + 12 + next() * Math.max(8, rw - sw - 24);
-        const sy = ry + 12 + next() * Math.max(8, rh - sh - 24);
-        ctx.fillStyle = 'rgba(150,200,225,0.85)';
-        ctx.fillRect(sx, sy, sw, sh);
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(sx + 1, sy + 1, sw - 2, sh - 2);
-      }
-      if (b.floors >= 3 && next() < 0.7) {
-        // Water tank on a tall block: a drum with a highlight.
-        const tx = rx + rw - 26;
-        const ty = ry + 24;
-        ctx.fillStyle = '#8a8a84';
-        ctx.beginPath();
-        ctx.arc(tx, ty, 12, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.35)';
-        ctx.beginPath();
-        ctx.arc(tx - 4, ty - 4, 5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (b.floors >= 4 && b.seed % 4 === 0) {
-        // Helipad on a few of the tallest towers: a ring with an H. Tied to
-        // the building's seed, so only about one in four towers has one and
-        // the skyline does not repeat itself.
-        const hx = rx + rw / 2;
-        const hy = ry + rh / 2;
-        const hr = Math.min(rw, rh) * 0.22;
-        ctx.strokeStyle = 'rgba(255,255,255,0.65)';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.65)';
-        ctx.font = `bold ${Math.round(hr)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('H', hx, hy + 1);
-      } else if (next() < 0.3) {
-        // Rooftop garden: a green patch with tiny shrubs.
-        const gw = Math.min(70, rw * 0.4);
-        const gh = Math.min(46, rh * 0.35);
-        const gx = rx + 10 + next() * Math.max(8, rw - gw - 20);
-        const gy = ry + 10 + next() * Math.max(8, rh - gh - 20);
-        ctx.fillStyle = 'rgba(93,156,79,0.9)';
-        ctx.fillRect(gx, gy, gw, gh);
-        ctx.fillStyle = 'rgba(63,143,79,0.9)';
-        for (let k = 0; k < 4; k++) {
-          ctx.beginPath();
-          ctx.arc(gx + 8 + next() * (gw - 16), gy + 8 + next() * (gh - 16), 4 + next() * 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
+      ctx.fillRect(b.x + 7, b.y + 7, b.w - 14, 8);
+      // Roof clutter: vents and a water tank, placed by the building's seed.
+      const s = b.seed;
+      const vx = b.x + 14 + (s % 53);
+      const vy = b.y + 14 + ((s >> 3) % 41);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(vx, vy, 14, 10);
+      ctx.fillRect(b.x + b.w - 30, b.y + b.h - 26, 12, 12);
     }
   }
 

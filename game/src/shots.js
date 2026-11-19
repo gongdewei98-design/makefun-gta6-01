@@ -66,16 +66,6 @@ function spawnChase(world, x, y, count) {
   }
 }
 
-function placePeds(world, points) {
-  // Hand-placed pedestrians near the action, so each frame has people in it.
-  // They stroll off on their own — and scatter when the sirens come.
-  for (const [x, y] of points) {
-    const ped = createPed(world, x, y);
-    ped.target = { x: x + 160, y: y - 30 };
-    world.peds.push(ped);
-  }
-}
-
 function stageChase(world) {
   // Cover shot: Mara fleeing down the beach road, three stars, sirens behind,
   // a mission objective on the HUD.
@@ -94,19 +84,18 @@ function stageChase(world) {
   startMission(world, def);
   // Point the mission at the safehouse so the objective reads on the HUD.
   world.mission.timer = 96;
-  // People on the sidewalks ahead, about to scatter from the sirens.
-  placePeds(world, [[1050, 2233], [1350, 2367], [1520, 2233], [900, 2367]]);
 }
 
 function stageStreet(world) {
   // On foot in Old Town: pedestrians, traffic, palms, pastel buildings.
   putPlayerOnFoot(world, 1500, 1500, -Math.PI / 2);
   clearWanted(world);
-  // People close by so the street feels lived in.
-  placePeds(world, [
-    [-120, 60], [90, -80], [160, 120], [-200, -140], [60, 200],
-    [-60, -190], [220, -40], [-260, 90], [30, -260],
-  ].map(([dx, dy]) => [1500 + dx, 1500 + dy]));
+  // A few peds close by so the street feels lived in.
+  for (const [dx, dy] of [[-120, 60], [90, -80], [160, 120], [-200, -140], [60, 200]]) {
+    const ped = createPed(world, 1500 + dx, 1500 + dy);
+    ped.target = { x: ped.x + 150, y: ped.y - 40 };
+    world.peds.push(ped);
+  }
 }
 
 function stageDrive(world) {
@@ -142,8 +131,6 @@ function stageDrive(world) {
   ahead.vx = 240;
   ahead.speed = 240;
   world.cars.push(ahead);
-  // Strollers on the beach-side sidewalk, umbrellas behind them.
-  placePeds(world, [[1300, 2367], [1600, 2367], [1000, 2367]]);
 }
 
 function stageMission(world) {
@@ -156,12 +143,6 @@ function stageMission(world) {
   // Keep the gang in frame, ahead of Mara.
   world.enemies.length = 0;
   spawnGang(world, spot.x - 60, spot.y, 4);
-  // Bystanders caught in the shootout, running for cover.
-  placePeds(world, [[2950, 2233], [3050, 2367], [2720, 2367], [2980, 2100]]);
-  // A parked car for cover near the fight.
-  const cover = createCar(spot.x - 150, spot.y + 28, 0, 'sedan', 'parked');
-  cover.color = '#7fb5b5';
-  world.cars.push(cover);
 }
 
 /** Drive the player's car straight ahead, gently, for the shot scenes. */

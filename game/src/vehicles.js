@@ -433,10 +433,10 @@ export function nearestStealableCar(world, x, y) {
 export function drawCar(ctx, car, time) {
   ctx.save();
   ctx.translate(car.x, car.y);
-  // Soft shadow, deep and offset so the car sits on the road.
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  // Soft shadow.
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath();
-  ctx.ellipse(7, 10, 37, 21, car.angle, 0, Math.PI * 2);
+  ctx.ellipse(4, 6, 34, 18, car.angle, 0, Math.PI * 2);
   ctx.fill();
   ctx.rotate(car.angle);
   const L = CAR.length;

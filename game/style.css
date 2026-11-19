@@ -111,36 +111,26 @@ html, body {
 #hud-objective-meta { font-size: 13px; color: #ffe9a8; margin-top: 2px; min-height: 16px; }
 
 #hud-message {
-  top: 92px;
+  top: 32%;
   left: 50%;
-  transform: translate(-50%, -8px);
+  transform: translate(-50%, -50%) scale(0.96);
   text-align: center;
   opacity: 0;
   transition: opacity 0.25s, transform 0.25s;
   pointer-events: none;
-  background: rgba(12, 10, 8, 0.72);
-  border: 1px solid rgba(255, 210, 60, 0.45);
-  border-radius: 999px;
-  padding: 8px 26px 9px;
-  backdrop-filter: blur(3px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-  white-space: nowrap;
 }
-#hud-message.show { opacity: 1; transform: translate(-50%, 0); }
+#hud-message.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 #hud-message-title {
-  display: inline;
-  font-size: 20px;
+  font-size: 44px;
   font-weight: 900;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   color: #ffd23c;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), 0 6px 24px rgba(0, 0, 0, 0.6);
 }
 #hud-message-sub {
-  display: inline;
-  font-size: 14px;
-  margin-left: 10px;
-  color: #f5efe2;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  font-size: 18px;
+  margin-top: 4px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
 
 #hud-hint {

@@ -10,6 +10,7 @@ import { addHeat } from './police.js';
 
 const SHIRTS = ['#e8837a', '#7fb5b5', '#f2c230', '#9db8d2', '#d9a5c0', '#a8c686', '#f4e3c1', '#8d99ae'];
 const PANTS = ['#3a3a42', '#4f6d8c', '#7a6a4f', '#5d4a6b', '#2f4f4f'];
+const CAPS = ['#d94f3d', '#3d7dd9', '#f2c230', '#2f2f33', '#7fb069', '#e8e8e8'];
 
 let nextId = 1;
 
@@ -47,6 +48,8 @@ export function createPed(world, x, y) {
     shirt: SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
     pants: PANTS[Math.floor(Math.random() * PANTS.length)],
     skin: ['#f2c9a0', '#c98d5e', '#8d5a3b', '#f7d7b0'][Math.floor(Math.random() * 4)],
+    // About a third of the crowd wears a cap, in a bright colour.
+    cap: Math.random() < 0.35 ? CAPS[Math.floor(Math.random() * CAPS.length)] : null,
     walkPhase: Math.random() * Math.PI * 2,
   };
 }
@@ -185,39 +188,62 @@ export function updatePeds(world, dt) {
 export function drawPed(ctx, ped) {
   ctx.save();
   ctx.translate(ped.x, ped.y);
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath();
-  ctx.ellipse(2, 4, 10, 6, 0, 0, Math.PI * 2);
+  ctx.ellipse(3, 6, 15, 9, 0, 0, Math.PI * 2);
   ctx.fill();
   if (ped.state === 'down') {
     // Lying on the ground, stars circling.
     ctx.rotate(ped.angle);
     ctx.fillStyle = ped.shirt;
-    ctx.fillRect(-13, -6, 26, 12);
+    ctx.fillRect(-20, -9, 40, 18);
     ctx.fillStyle = ped.skin;
     ctx.beginPath();
-    ctx.arc(15, 0, 6, 0, Math.PI * 2);
+    ctx.arc(23, 0, 9, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     return;
   }
   ctx.rotate(ped.angle + Math.PI / 2);
-  const swing = Math.sin(ped.walkPhase) * (ped.speed > 10 ? 3 : 0);
-  // Legs, body, head: a simple top-down figure.
+  const swing = Math.sin(ped.walkPhase) * (ped.speed > 10 ? 5 : 0);
+  // Legs, swinging opposite each other, about 1.5x the old size.
   ctx.fillStyle = ped.pants;
-  ctx.fillRect(-6, -2 + swing * 0.4, 5, 12);
-  ctx.fillRect(1, -2 - swing * 0.4, 5, 12);
+  ctx.fillRect(-9, -3 + swing * 0.5, 7, 18);
+  ctx.fillRect(2, -3 - swing * 0.5, 7, 18);
+  // Arms swing against the legs, with hands at the ends.
+  const armSwing = -swing;
+  ctx.fillStyle = ped.shirt;
+  ctx.fillRect(-14, -8 + armSwing * 0.5, 5, 15);
+  ctx.fillRect(9, -8 - armSwing * 0.5, 5, 15);
+  ctx.fillStyle = ped.skin;
+  ctx.beginPath();
+  ctx.arc(-11.5, 8 + armSwing * 0.5, 3.5, 0, Math.PI * 2);
+  ctx.arc(11.5, 8 - armSwing * 0.5, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Body and head.
   ctx.fillStyle = ped.shirt;
   ctx.beginPath();
-  ctx.ellipse(0, -2, 8, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -3, 12, 13, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = ped.skin;
   ctx.beginPath();
-  ctx.arc(0, -12, 6.5, 0, Math.PI * 2);
+  ctx.arc(0, -18, 9.5, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#2b2b2e';
-  ctx.beginPath();
-  ctx.arc(0, -13.5, 6, Math.PI, Math.PI * 2);
-  ctx.fill();
+  if (ped.cap) {
+    // A cap: coloured dome with a brim pointing forward.
+    ctx.fillStyle = ped.cap;
+    ctx.beginPath();
+    ctx.arc(0, -19, 9.5, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(-9.5, -20, 19, 4);
+    ctx.beginPath();
+    ctx.ellipse(0, -27, 8, 3.5, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#2b2b2e';
+    ctx.beginPath();
+    ctx.arc(0, -20, 9, Math.PI, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }

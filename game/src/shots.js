@@ -44,6 +44,16 @@ function putPlayerOnFoot(world, x, y, angle) {
   world.camera.y = y;
 }
 
+// Hand-place pedestrians at offsets from (cx, cy), each with a stroll target
+// along the sidewalk, so the staged frame has people near the action.
+function placePeds(world, cx, cy, offsets) {
+  for (const [dx, dy] of offsets) {
+    const ped = createPed(world, cx + dx, cy + dy);
+    ped.target = { x: ped.x + (dx % 2 === 0 ? 140 : -140), y: ped.y + 30 };
+    world.peds.push(ped);
+  }
+}
+
 function spawnChase(world, x, y, count) {
   for (let i = 0; i < count; i++) {
     const behind = 130 + i * 110;
@@ -84,18 +94,24 @@ function stageChase(world) {
   startMission(world, def);
   // Point the mission at the safehouse so the objective reads on the HUD.
   world.mission.timer = 96;
+  // Onlookers on the sidewalks ahead of the chase, watching it go by.
+  placePeds(world, x, y, [
+    [300, -67], [520, 67], [760, -67], [980, 67], [1200, -67],
+    [1450, 67], [1700, -67], [210, 67],
+  ]);
 }
 
 function stageStreet(world) {
   // On foot in Old Town: pedestrians, traffic, palms, pastel buildings.
   putPlayerOnFoot(world, 1500, 1500, -Math.PI / 2);
   clearWanted(world);
-  // A few peds close by so the street feels lived in.
-  for (const [dx, dy] of [[-120, 60], [90, -80], [160, 120], [-200, -140], [60, 200]]) {
-    const ped = createPed(world, 1500 + dx, 1500 + dy);
-    ped.target = { x: ped.x + 150, y: ped.y - 40 };
-    world.peds.push(ped);
-  }
+  // A crowd close by so the street feels lived in, including people at the
+  // crosswalk corners where the zebra stripes are.
+  placePeds(world, 1500, 1500, [
+    [-120, 60], [90, -80], [160, 120], [-200, -140], [60, 200],
+    [-70, -70], [70, 70], [-160, 140], [220, -40], [-40, -200],
+    [140, -180], [-240, 40],
+  ]);
 }
 
 function stageDrive(world) {
@@ -131,6 +147,11 @@ function stageDrive(world) {
   ahead.vx = 240;
   ahead.speed = 240;
   world.cars.push(ahead);
+  // Strollers on the beach-side sidewalk and a couple of beachgoers on the sand.
+  placePeds(world, x, y, [
+    [300, 67], [560, -67], [820, 67], [1080, -67], [1340, 67],
+    [1600, -67], [430, 210], [950, 240],
+  ]);
 }
 
 function stageMission(world) {
@@ -143,6 +164,12 @@ function stageMission(world) {
   // Keep the gang in frame, ahead of Mara.
   world.enemies.length = 0;
   spawnGang(world, spot.x - 60, spot.y, 4);
+  // Dock workers and bystanders around the shootout: some scatter when the
+  // shooting starts, which is exactly what the frame should show.
+  placePeds(world, spot.x, spot.y, [
+    [-320, 67], [-140, -67], [40, 67], [-420, -67], [120, -67],
+    [-200, 120], [200, 120],
+  ]);
 }
 
 /** Drive the player's car straight ahead, gently, for the shot scenes. */

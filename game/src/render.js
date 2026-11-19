@@ -14,6 +14,16 @@ import { drawBullets, drawEnemy } from './combat.js';
 import { drawPlayer } from './player.js';
 import { currentObjective } from './missions.js';
 
+// Deterministic 0..1 value from any integer seed. Every step is kept unsigned
+// (>>> 0): a signed hash once fed a negative into a placement and crashed the
+// umbrella render, so no hash here is ever allowed to go negative.
+function hash01(n) {
+  let h = (n >>> 0) ^ 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 16), 0x21f0aaad);
+  h = Math.imul(h ^ (h >>> 15), 0x735a2d97);
+  return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
+}
+
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
   let viewW = 0;
@@ -63,13 +73,55 @@ export function createRenderer(canvas) {
     // Base ground.
     ctx.fillStyle = PALETTE.ground;
     ctx.fillRect(view.x0, view.y0, view.x1 - view.x0, view.y1 - view.y0);
-    // Parks.
+    // Parks: grass with dirt path crosses, ponds and flower beds.
     for (const p of world.city.parks) {
       if (p.x > view.x1 || p.x + p.w < view.x0 || p.y > view.y1 || p.y + p.h < view.y0) continue;
       ctx.fillStyle = PALETTE.grass;
       ctx.fillRect(p.x, p.y, p.w, p.h);
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.fillRect(p.x + 8, p.y + 8, p.w - 16, p.h - 16);
+      // Dirt paths crossing the park, plus to plus.
+      ctx.fillStyle = '#c9b183';
+      ctx.fillRect(p.x + p.w / 2 - 7, p.y + 4, 14, p.h - 8);
+      ctx.fillRect(p.x + 4, p.y + p.h / 2 - 7, p.w - 8, 14);
+      const seed = Math.floor(p.x) * 31 + Math.floor(p.y);
+      // A pond in about half the parks, tucked into a seeded quadrant.
+      if (hash01(seed + 5) < 0.5) {
+        const px = p.x + p.w * (0.24 + hash01(seed + 6) * 0.5);
+        const py = p.y + p.h * (0.24 + hash01(seed + 7) * 0.5);
+        ctx.fillStyle = '#e8ddc8';
+        ctx.beginPath();
+        ctx.ellipse(px, py, 34, 24, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#6fb3c9';
+        ctx.beginPath();
+        ctx.ellipse(px, py, 29, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.beginPath();
+        ctx.ellipse(px - 8, py - 5, 10, 5, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Flower beds: small clusters of bright dots at seeded spots.
+      const bedColors = ['#e86a92', '#f2c230', '#c86dd7', '#ff8a5c'];
+      for (let i = 0; i < 3; i++) {
+        const bx = p.x + 18 + hash01(seed + 11 + i * 3) * (p.w - 36);
+        const by = p.y + 18 + hash01(seed + 12 + i * 3) * (p.h - 36);
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.beginPath();
+        ctx.ellipse(bx, by, 16, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let j = 0; j < 7; j++) {
+          ctx.fillStyle = bedColors[Math.floor(hash01(seed + 20 + i * 10 + j) * bedColors.length)];
+          ctx.beginPath();
+          ctx.arc(
+            bx - 10 + hash01(seed + 30 + i * 10 + j) * 20,
+            by - 6 + hash01(seed + 40 + i * 10 + j) * 12,
+            2.6, 0, Math.PI * 2,
+          );
+          ctx.fill();
+        }
+      }
     }
     // Parking lots.
     for (const p of world.city.parkingLots) {
@@ -92,6 +144,43 @@ export function createRenderer(canvas) {
       // Wet sand near the waterline.
       ctx.fillStyle = '#d9c184';
       ctx.fillRect(view.x0, WORLD.waterTop - 14, view.x1 - view.x0, 14);
+      // Beach umbrellas and towels: seeded columns along the sand, so the
+      // same beach shows up on every load. All placements come from hash01,
+      // which never returns a negative.
+      const umbrellaColors = [['#e86a5c', '#f5efe2'], ['#3d7dd9', '#f5efe2'], ['#f2c230', '#e86a5c'], ['#4ecdc4', '#f5efe2']];
+      const towelColors = ['#e86a92', '#3d7dd9', '#f2c230', '#4ecdc4', '#c86dd7'];
+      for (let i = 0; i * 130 + 90 < WORLD.width - 60; i++) {
+        const present = hash01(i * 7 + 11);
+        if (present >= 0.62) continue;
+        const ux = 90 + i * 130 + (hash01(i * 13 + 3) - 0.5) * 44;
+        if (ux < view.x0 - 40 || ux > view.x1 + 40) continue;
+        const uy = WORLD.beachTop + 34 + hash01(i * 17 + 5) * 110;
+        const pair = umbrellaColors[Math.floor(hash01(i * 19 + 7) * umbrellaColors.length)];
+        // Shadow, then the segmented canopy: eight wedges, alternating colours.
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.beginPath();
+        ctx.ellipse(ux + 8, uy + 10, 17, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let w = 0; w < 8; w++) {
+          ctx.fillStyle = pair[w % 2];
+          ctx.beginPath();
+          ctx.moveTo(ux, uy);
+          ctx.arc(ux, uy, 16, (w / 8) * Math.PI * 2, ((w + 1) / 8) * Math.PI * 2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.arc(ux, uy, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        // A towel beside it, with a stripe.
+        const tx = ux + 20 + hash01(i * 23 + 9) * 14;
+        const ty = uy + 12 + (hash01(i * 29 + 13) - 0.5) * 18;
+        ctx.fillStyle = towelColors[Math.floor(hash01(i * 31 + 17) * towelColors.length)];
+        ctx.fillRect(tx, ty, 24, 11);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillRect(tx + 4, ty, 4, 11);
+      }
     }
     if (view.y1 > WORLD.waterTop) {
       const grad = ctx.createLinearGradient(0, WORLD.waterTop, 0, WORLD.height);
@@ -144,6 +233,26 @@ export function createRenderer(canvas) {
       if (hy + half < view.y0 || hy - half > view.y1) continue;
       ctx.fillRect(0, hy - half, WORLD.width, ROADS.width);
     }
+    // Zebra crosswalks at every intersection, on all four arms. The stripes
+    // run with the traffic flow: vertical bars across a vertical road's arms,
+    // horizontal bars across a horizontal road's.
+    ctx.fillStyle = 'rgba(240,236,220,0.85)';
+    for (const vx of ROADS.vertical) {
+      for (const hy of ROADS.horizontal) {
+        if (vx < view.x0 - half - 30 || vx > view.x1 + half + 30) continue;
+        if (hy < view.y0 - half - 30 || hy > view.y1 + half + 30) continue;
+        // North and south arms of the vertical road.
+        for (let x = vx - half + 8; x < vx + half - 8; x += 15) {
+          ctx.fillRect(x, hy - half - 18, 8, 12);
+          ctx.fillRect(x, hy + half + 6, 8, 12);
+        }
+        // West and east arms of the horizontal road.
+        for (let y = hy - half + 8; y < hy + half - 8; y += 15) {
+          ctx.fillRect(vx - half - 18, y, 12, 8);
+          ctx.fillRect(vx + half + 6, y, 12, 8);
+        }
+      }
+    }
     // Centre dashes, broken at intersections.
     ctx.fillStyle = PALETTE.dash;
     for (const vx of ROADS.vertical) {
@@ -177,29 +286,150 @@ export function createRenderer(canvas) {
   function drawBuildings(world, view) {
     for (const b of world.city.buildings) {
       if (b.x + b.w < view.x0 || b.x > view.x1 || b.y + b.h < view.y0 || b.y > view.y1) continue;
-      const lift = 6 + b.floors * 3;
-      // Drop shadow to the south-east, sized by height.
-      ctx.fillStyle = 'rgba(0,0,0,0.22)';
-      ctx.fillRect(b.x + lift, b.y + lift + 4, b.w, b.h);
-      // Wall face.
+      const lift = 6 + b.floors * 3; // 9..18: taller blocks read taller.
+      // Strong drop shadow to the south-east, sized by height.
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(b.x + lift + 4, b.y + lift + 6, b.w, b.h);
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.fillRect(b.x + lift + 9, b.y + lift + 11, b.w, b.h);
+      // Wall face: the whole footprint.
       ctx.fillStyle = b.color;
       ctx.fillRect(b.x, b.y, b.w, b.h);
-      // South and east faces, darker, for a hint of height.
-      ctx.fillStyle = 'rgba(0,0,0,0.14)';
+      // South and east side faces, darker, so the block reads as a solid.
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
       ctx.fillRect(b.x, b.y + b.h - lift, b.w, lift);
       ctx.fillRect(b.x + b.w - lift, b.y, lift, b.h);
-      // Roof.
+      // Lit window strips on the side faces: warm rectangles, some dark.
+      ctx.fillStyle = 'rgba(255,236,160,0.85)';
+      const winH = Math.max(3, lift - 6);
+      for (let wx = b.x + 10; wx < b.x + b.w - 10; wx += 22) {
+        if (hash01(b.seed + Math.floor(wx)) < 0.6) {
+          ctx.fillRect(wx, b.y + b.h - lift + 3, 10, winH);
+        }
+      }
+      for (let wy = b.y + 10; wy < b.y + b.h - 10; wy += 22) {
+        if (hash01(b.seed * 3 + Math.floor(wy)) < 0.6) {
+          ctx.fillRect(b.x + b.w - lift + 3, wy, winH, 10);
+        }
+      }
+      // Roof, offset toward the north-west so the south and east walls show
+      // as the building's sides.
+      const rx = b.x - lift;
+      const ry = b.y - lift;
       ctx.fillStyle = b.roof;
-      ctx.fillRect(b.x + 7, b.y + 7, b.w - 14, b.h - 14);
-      ctx.fillStyle = 'rgba(255,255,255,0.16)';
-      ctx.fillRect(b.x + 7, b.y + 7, b.w - 14, 8);
-      // Roof clutter: vents and a water tank, placed by the building's seed.
+      ctx.fillRect(rx, ry, b.w, b.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(rx, ry, b.w, 7);
+      // Roof panel seams.
+      ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+      ctx.lineWidth = 2;
+      for (let sx = rx + 26; sx < rx + b.w - 10; sx += 26) {
+        ctx.beginPath();
+        ctx.moveTo(sx, ry + 4);
+        ctx.lineTo(sx, ry + b.h - 4);
+        ctx.stroke();
+      }
+      for (let sy = ry + 26; sy < ry + b.h - 10; sy += 26) {
+        ctx.beginPath();
+        ctx.moveTo(rx + 4, sy);
+        ctx.lineTo(rx + b.w - 4, sy);
+        ctx.stroke();
+      }
+      if (b.w < 70 || b.h < 70) continue; // Small roofs stay plain.
       const s = b.seed;
-      const vx = b.x + 14 + (s % 53);
-      const vy = b.y + 14 + ((s >> 3) % 41);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.fillRect(vx, vy, 14, 10);
-      ctx.fillRect(b.x + b.w - 30, b.y + b.h - 26, 12, 12);
+      const innerX = rx + 10;
+      const innerY = ry + 10;
+      const innerW = b.w - 20;
+      const innerH = b.h - 20;
+      // A helipad on about one in four towers (3+ floors), centred.
+      const hasPad = b.floors >= 3 && hash01(s + 77) < 0.25 && Math.min(b.w, b.h) > 120;
+      if (hasPad) {
+        const cx = rx + b.w / 2;
+        const cy = ry + b.h / 2;
+        const pr = Math.min(b.w, b.h) * 0.26;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, pr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, pr - 3, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        const hw = pr * 0.28;
+        const hh = pr * 0.62;
+        ctx.fillRect(cx - hw, cy - hh, pr * 0.2, hh * 2);
+        ctx.fillRect(cx + hw - pr * 0.2, cy - hh, pr * 0.2, hh * 2);
+        ctx.fillRect(cx - hw, cy - pr * 0.1, hw * 2, pr * 0.2);
+      }
+      // AC units along the north edge: grey boxes with fan circles.
+      const acCount = 1 + Math.floor(hash01(s + 1) * 3);
+      for (let i = 0; i < acCount; i++) {
+        const ax = innerX + 6 + hash01(s + 21 + i * 5) * Math.max(10, innerW - 30);
+        const ay = innerY + 4 + hash01(s + 22 + i * 5) * 14;
+        ctx.fillStyle = '#8d99ae';
+        ctx.fillRect(ax, ay, 18, 13);
+        ctx.fillStyle = '#5d6a7a';
+        ctx.beginPath();
+        ctx.arc(ax + 9, ay + 6.5, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#c9d2dc';
+        ctx.beginPath();
+        ctx.arc(ax + 9, ay + 6.5, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Vents along the south edge: dark boxes with a lighter top.
+      const ventCount = 1 + Math.floor(hash01(s + 2) * 2);
+      for (let i = 0; i < ventCount; i++) {
+        const vx = innerX + 6 + hash01(s + 31 + i * 5) * Math.max(10, innerW - 24);
+        const vy = innerY + innerH - 16 - hash01(s + 32 + i * 5) * 10;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(vx, vy, 12, 10);
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(vx, vy, 12, 3);
+      }
+      // A skylight on the west side: pale blue with a white frame.
+      if (hash01(s + 3) < 0.7) {
+        const kx = innerX + 4 + hash01(s + 41) * 12;
+        const ky = innerY + innerH * 0.3 + hash01(s + 42) * innerH * 0.3;
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillRect(kx, ky, 20, 14);
+        ctx.fillStyle = '#a8d0e0';
+        ctx.fillRect(kx + 2, ky + 2, 16, 10);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillRect(kx + 2, ky + 2, 16, 3);
+      }
+      // A water tank on the east side: a cylinder seen from above.
+      if (hash01(s + 4) < 0.65) {
+        const tx = innerX + innerW - 22 - hash01(s + 51) * 14;
+        const ty = innerY + innerH * 0.3 + hash01(s + 52) * innerH * 0.3;
+        ctx.fillStyle = '#7a8a9a';
+        ctx.beginPath();
+        ctx.arc(tx, ty, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#a8b8c8';
+        ctx.beginPath();
+        ctx.arc(tx - 2, ty - 2, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.beginPath();
+        ctx.arc(tx - 3, ty - 4, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // A rooftop garden in one corner, unless the helipad took the roof.
+      if (!hasPad && hash01(s + 55) < 0.3) {
+        const gx = innerX + innerW - 44;
+        const gy = innerY + innerH - 34;
+        ctx.fillStyle = '#5d9c4f';
+        ctx.fillRect(gx, gy, 36, 26);
+        ctx.fillStyle = '#3f8f4f';
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.arc(gx + 6 + hash01(s + 61 + i) * 24, gy + 5 + hash01(s + 65 + i) * 16, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
   }
 
